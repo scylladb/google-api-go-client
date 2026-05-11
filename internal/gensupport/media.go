@@ -118,11 +118,15 @@ func typeHeader(contentType string) textproto.MIMEHeader {
 //
 // After PrepareUpload has been called, media should no longer be used: the
 // media content should be accessed via one of the return values.
-func PrepareUpload(media io.Reader, chunkSize int, enableAutoChecksum bool) (r io.Reader, mb *MediaBuffer, singleChunk bool) {
+func PrepareUpload(media io.Reader, chunkSize int, enableAutoChecksum bool, buffer []byte) (r io.Reader, mb *MediaBuffer, singleChunk bool) {
 	if chunkSize == 0 { // do not chunk
 		return media, nil, true
 	}
-	mb = NewMediaBuffer(media, chunkSize)
+	if buffer != nil {
+		mb = NewMediaBufferWithBuffer(media, chunkSize, buffer)
+	} else {
+		mb = NewMediaBuffer(media, chunkSize)
+	}
 	mb.enableAutoChecksum = enableAutoChecksum
 	_, _, _, err := mb.Chunk()
 	// If err is io.EOF, we can upload this in a single request. Otherwise, err is
@@ -160,7 +164,7 @@ func NewInfoFromMedia(r io.Reader, options []googleapi.MediaOption) *MediaInfo {
 	}
 	mi.chunkRetryDeadline = opts.ChunkRetryDeadline
 	mi.chunkTransferTimeout = opts.ChunkTransferTimeout
-	mi.media, mi.buffer, mi.singleChunk = PrepareUpload(r, opts.ChunkSize, opts.EnableAutoChecksum)
+	mi.media, mi.buffer, mi.singleChunk = PrepareUpload(r, opts.ChunkSize, opts.EnableAutoChecksum, opts.Buffer)
 	return mi
 }
 
